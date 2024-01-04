@@ -121,30 +121,6 @@ def check_record_exists(cursor, data) -> bool:
     return count > 0
 
 
-def insert_record(cursor, data):
-    """
-    Insert data into the customer_visits table.
-
-    Parameters:
-    - cursor: psycopg2.extensions.cursor
-    - data: dict
-    """
-    cursor.execute("""
-        INSERT INTO customer_visits 
-        (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-    """, (
-        data['ad_bucket'],
-        data['ad_type'],
-        data['ad_source'],
-        data['schema_version'],
-        data['ad_campaign_id'],
-        data['ad_keyword'],
-        data['ad_group_id'],
-        data['ad_creative'],
-    ))
-
-
 def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
     """
     Batch insert data into the customer_visits table.
