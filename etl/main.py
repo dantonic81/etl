@@ -9,9 +9,10 @@ from psycopg2 import OperationalError
 load_dotenv()
 
 
-# TODO extract functions
-# TODO make solution scalable
+# TODO make solution scalable using batch logic
 # TODO write tests
+# TODO use logging
+# TODO use linting
 def parse_url(url: str) -> Dict[str, str]:
     """
     Parse a URL and extract relevant data.
@@ -60,6 +61,83 @@ def establish_connection() -> Optional[psycopg2.extensions.connection]:
         return None
 
 
+def create_table(cursor):
+    """
+    Create customer_visits table if not exists.
+
+    Parameters:
+    - cursor: psycopg2.extensions.cursor
+    """
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS customer_visits (
+            ad_bucket VARCHAR(255),
+            ad_type VARCHAR(255),
+            ad_source VARCHAR(255),
+            schema_version VARCHAR(255),
+            ad_campaign_id VARCHAR(255),
+            ad_keyword VARCHAR(255),
+            ad_group_id VARCHAR(255),
+            ad_creative VARCHAR(255)
+        );
+    """)
+
+
+def check_record_exists(cursor, data) -> bool:
+    """
+    Check if a similar record already exists.
+
+    Parameters:
+    - cursor: psycopg2.extensions.cursor
+    - data: dict
+
+    Returns:
+    - bool: True if the record exists, False otherwise.
+    """
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM customer_visits
+        WHERE ad_bucket = %s AND ad_type = %s AND ad_source = %s AND
+              schema_version = %s AND ad_campaign_id = %s AND ad_keyword = %s AND
+              ad_group_id = %s AND ad_creative = %s;
+    """, (
+        data['ad_bucket'],
+        data['ad_type'],
+        data['ad_source'],
+        data['schema_version'],
+        data['ad_campaign_id'],
+        data['ad_keyword'],
+        data['ad_group_id'],
+        data['ad_creative'],
+    ))
+
+    count = cursor.fetchone()[0]
+    return count > 0
+
+
+def insert_record(cursor, data):
+    """
+    Insert data into the customer_visits table.
+
+    Parameters:
+    - cursor: psycopg2.extensions.cursor
+    - data: dict
+    """
+    cursor.execute("""
+        INSERT INTO customer_visits 
+        (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+    """, (
+        data['ad_bucket'],
+        data['ad_type'],
+        data['ad_source'],
+        data['schema_version'],
+        data['ad_campaign_id'],
+        data['ad_keyword'],
+        data['ad_group_id'],
+        data['ad_creative'],
+    ))
+
+
 def main() -> None:
     """
     Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
@@ -75,60 +153,17 @@ def main() -> None:
             try:
                 with connection.cursor() as cursor:
                     # Create customer_visits table if not exists
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS customer_visits (
-                            ad_bucket VARCHAR(255),
-                            ad_type VARCHAR(255),
-                            ad_source VARCHAR(255),
-                            schema_version VARCHAR(255),
-                            ad_campaign_id VARCHAR(255),
-                            ad_keyword VARCHAR(255),
-                            ad_group_id VARCHAR(255),
-                            ad_creative VARCHAR(255)
-                        );
-                    """)
-                    connection.commit()
+                    create_table(cursor)
 
                     # Insert data into PostgreSQL
                     for index, row in df.iterrows():
                         data = row['parsed_data']
 
                         # Check if a similar record already exists
-                        cursor.execute("""
-                            SELECT COUNT(*)
-                            FROM customer_visits
-                            WHERE ad_bucket = %s AND ad_type = %s AND ad_source = %s AND
-                                  schema_version = %s AND ad_campaign_id = %s AND ad_keyword = %s AND
-                                  ad_group_id = %s AND ad_creative = %s;
-                        """, (
-                            data['ad_bucket'],
-                            data['ad_type'],
-                            data['ad_source'],
-                            data['schema_version'],
-                            data['ad_campaign_id'],
-                            data['ad_keyword'],
-                            data['ad_group_id'],
-                            data['ad_creative'],
-                        ))
-
-                        count = cursor.fetchone()[0]
-
-                        if count == 0:
+                        if not check_record_exists(cursor, data):
                             # Insert the record only if it doesn't exist
-                            cursor.execute("""
-                                INSERT INTO customer_visits 
-                                (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                            """, (
-                                data['ad_bucket'],
-                                data['ad_type'],
-                                data['ad_source'],
-                                data['schema_version'],
-                                data['ad_campaign_id'],
-                                data['ad_keyword'],
-                                data['ad_group_id'],
-                                data['ad_creative'],
-                            ))
+                            insert_record(cursor, data)
+
             except OperationalError as e:
                 print(f"Error: Unable to execute SQL commands. {e}")
 
