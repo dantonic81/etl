@@ -6,14 +6,18 @@ from urllib.parse import urlparse, parse_qs
 from typing import Dict, List, Optional
 from psycopg2 import OperationalError
 from psycopg2.pool import SimpleConnectionPool
+import logging
 
 load_dotenv()
 
 
 # TODO write tests
-# TODO use logging
 # TODO use linting
 
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Connection pool configuration
 connection_pool = SimpleConnectionPool(
@@ -64,7 +68,7 @@ def establish_connection() -> Optional[psycopg2.extensions.connection]:
     try:
         return connection_pool.getconn()
     except OperationalError as e:
-        print(f"Error: Unable to connect to the database. {e}")
+        logger.error(f"Error: Unable to connect to the database. {e}")
         return None
 
 
@@ -177,7 +181,7 @@ def main() -> None:
                         batch_insert_records(cursor, existing_data)
 
             except OperationalError as e:
-                print(f"Error: Unable to execute SQL commands. {e}")
+                logger.error(f"Error: Unable to execute SQL commands. {e}")
 
 
 if __name__ == "__main__":
