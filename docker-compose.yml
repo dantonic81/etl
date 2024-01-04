@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  dwh:
+    container_name: dwh
+    image: postgres:11-alpine
+    restart: always
+    env_file:
+      - .env
+
+  etl:
+    container_name: etl
+    build:
+      context: .
+      dockerfile: ./etl/Dockerfile
+    env_file:
+      - .env
+

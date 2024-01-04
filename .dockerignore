@@ -1,0 +1,5 @@
+# .dockerignore
+
+# Exclude sensitive files
+.env.example
+.env
