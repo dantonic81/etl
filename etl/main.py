@@ -3,16 +3,30 @@ import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from psycopg2 import OperationalError
+from psycopg2.pool import SimpleConnectionPool
 
 load_dotenv()
 
 
-# TODO make solution scalable using batch logic
 # TODO write tests
 # TODO use logging
 # TODO use linting
+
+
+# Connection pool configuration
+connection_pool = SimpleConnectionPool(
+    minconn=1,
+    maxconn=10,
+    dbname=os.getenv("POSTGRES_DB"),
+    user=os.getenv("POSTGRES_USER"),
+    password=os.getenv("POSTGRES_PASSWORD"),
+    host=os.getenv("DB_HOST"),
+    port=os.getenv("DB_PORT"),
+)
+
+
 def parse_url(url: str) -> Dict[str, str]:
     """
     Parse a URL and extract relevant data.
@@ -48,16 +62,9 @@ def establish_connection() -> Optional[psycopg2.extensions.connection]:
     - psycopg2.extensions.connection: A connection object or None if connection fails.
     """
     try:
-        connection = psycopg2.connect(
-            dbname=os.getenv("POSTGRES_DB"),
-            user=os.getenv("POSTGRES_USER"),
-            password=os.getenv("POSTGRES_PASSWORD"),
-            host=os.getenv("DB_HOST"),
-            port=os.getenv("DB_PORT"),
-        )
-        return connection
+        return connection_pool.getconn()
     except OperationalError as e:
-        print(f"Error: Unable to connect to PostgreSQL. {e}")
+        print(f"Error: Unable to connect to the database. {e}")
         return None
 
 
@@ -138,6 +145,31 @@ def insert_record(cursor, data):
     ))
 
 
+def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
+    """
+    Batch insert data into the customer_visits table.
+
+    Parameters:
+    - cursor: psycopg2.extensions.cursor
+    - data_list: List of dictionaries
+    """
+    data_to_insert = [(data['ad_bucket'],
+                       data['ad_type'],
+                       data['ad_source'],
+                       data['schema_version'],
+                       data['ad_campaign_id'],
+                       data['ad_keyword'],
+                       data['ad_group_id'],
+                       data['ad_creative'])
+                      for data in data_list]
+
+    cursor.executemany("""
+        INSERT INTO customer_visits 
+        (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+    """, data_to_insert)
+
+
 def main() -> None:
     """
     Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
@@ -156,13 +188,17 @@ def main() -> None:
                     create_table(cursor)
 
                     # Insert data into PostgreSQL
-                    for index, row in df.iterrows():
-                        data = row['parsed_data']
+                    parsed_data_list = df['parsed_data'].tolist()
+                    existing_data = []
 
+                    for data in parsed_data_list:
                         # Check if a similar record already exists
                         if not check_record_exists(cursor, data):
-                            # Insert the record only if it doesn't exist
-                            insert_record(cursor, data)
+                            existing_data.append(data)
+
+                    # Batch insert only the records that don't exist
+                    if existing_data:
+                        batch_insert_records(cursor, existing_data)
 
             except OperationalError as e:
                 print(f"Error: Unable to execute SQL commands. {e}")
