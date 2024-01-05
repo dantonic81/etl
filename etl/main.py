@@ -13,6 +13,7 @@ load_dotenv()
 
 # TODO write tests
 # TODO use linting
+# handle scaling issue when data file becomes too big to be copied to container
 
 
 # Configure logging
@@ -154,34 +155,38 @@ def main() -> None:
     """
     Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
     """
-    df = pd.read_csv('data/raw_urls.csv')
+    try:
+        df = pd.read_csv('data/raw_urls.csv')
 
-    # Add columns to DataFrame with parsed data
-    df['parsed_data'] = df['url'].apply(parse_url)
+        # Add columns to DataFrame with parsed data
+        df['parsed_data'] = df['url'].apply(parse_url)
 
-    # Attempt to establish a connection
-    with establish_connection() as connection:
-        if connection:
-            try:
-                with connection.cursor() as cursor:
-                    # Create customer_visits table if not exists
-                    create_table(cursor)
+        # Attempt to establish a connection
+        with establish_connection() as connection:
+            if connection:
+                try:
+                    with connection.cursor() as cursor:
+                        # Create customer_visits table if not exists
+                        create_table(cursor)
 
-                    # Insert data into PostgreSQL
-                    parsed_data_list = df['parsed_data'].tolist()
-                    existing_data = []
+                        # Insert data into PostgreSQL
+                        parsed_data_list = df['parsed_data'].tolist()
+                        existing_data = []
 
-                    for data in parsed_data_list:
-                        # Check if a similar record already exists
-                        if not check_record_exists(cursor, data):
-                            existing_data.append(data)
+                        for data in parsed_data_list:
+                            # Check if a similar record already exists
+                            if not check_record_exists(cursor, data):
+                                existing_data.append(data)
 
-                    # Batch insert only the records that don't exist
-                    if existing_data:
-                        batch_insert_records(cursor, existing_data)
+                        # Batch insert only the records that don't exist
+                        if existing_data:
+                            batch_insert_records(cursor, existing_data)
 
-            except OperationalError as e:
-                logger.error(f"Error: Unable to execute SQL commands. {e}")
+                except OperationalError as e:
+                    logger.error(f"Error executing SQL commands: {e}")
+
+    except Exception as e:
+        logger.exception("An unexpected error occurred:", exc_info=True)
 
 
 if __name__ == "__main__":
