@@ -21,11 +21,11 @@ if not IS_TEST_ENV:
     connection_pool = SimpleConnectionPool(
         minconn=1,
         maxconn=10,
-        dbname=os.getenv("POSTGRES_DB") if not IS_TEST_ENV else None,
-        user=os.getenv("POSTGRES_USER") if not IS_TEST_ENV else None,
-        password=os.getenv("POSTGRES_PASSWORD") if not IS_TEST_ENV else None,
-        host=os.getenv("DB_HOST") if not IS_TEST_ENV else None,
-        port=os.getenv("DB_PORT") if not IS_TEST_ENV else None,
+        dbname=os.getenv("POSTGRES_DB"),
+        user=os.getenv("POSTGRES_USER"),
+        password=os.getenv("POSTGRES_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
     )
 
 
