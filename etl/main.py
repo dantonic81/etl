@@ -1,5 +1,5 @@
 import pandas as pd
-from database import establish_connection
+from etl.database import establish_connection
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List
