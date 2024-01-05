@@ -1,11 +1,9 @@
-import os
 import pandas as pd
-import psycopg2
+from database import establish_connection
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
-from typing import Dict, List, Optional
+from typing import Dict, List
 from psycopg2 import OperationalError
-from psycopg2.pool import SimpleConnectionPool
 import logging
 
 load_dotenv()
@@ -19,17 +17,6 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Connection pool configuration
-connection_pool = SimpleConnectionPool(
-    minconn=1,
-    maxconn=10,
-    dbname=os.getenv("POSTGRES_DB"),
-    user=os.getenv("POSTGRES_USER"),
-    password=os.getenv("POSTGRES_PASSWORD"),
-    host=os.getenv("DB_HOST"),
-    port=os.getenv("DB_PORT"),
-)
 
 
 def parse_url(url: str) -> Dict[str, str]:
@@ -57,20 +44,6 @@ def parse_url(url: str) -> Dict[str, str]:
     }
 
     return data
-
-
-def establish_connection() -> Optional[psycopg2.extensions.connection]:
-    """
-    Establish a connection to the PostgreSQL database.
-
-    Returns:
-    - psycopg2.extensions.connection: A connection object or None if connection fails.
-    """
-    try:
-        return connection_pool.getconn()
-    except OperationalError as e:
-        logger.error(f"Error: Unable to connect to the database. {e}")
-        return None
 
 
 def create_table(cursor):
