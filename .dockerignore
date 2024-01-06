@@ -3,3 +3,13 @@
 # Exclude sensitive files
 .env.example
 .env
+tests/
+README.md
+__pycache__
+.git
+.gitignore
+.coverage
+.flake8
+.idea
+.venv
+.pytest_cache
