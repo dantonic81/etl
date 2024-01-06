@@ -16,11 +16,11 @@ def test_parse_url():
         "ad_bucket": "value1",
         "ad_type": "value2",
         "ad_source": "value3",
-        "schema_version": "",
-        "ad_campaign_id": "",
+        "schema_version": None,
+        "ad_campaign_id": None,
         "ad_keyword": "",
-        "ad_group_id": "",
-        "ad_creative": "",
+        "ad_group_id": None,
+        "ad_creative": None,
     }
     assert parse_url(url) == expected_result
 
