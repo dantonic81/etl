@@ -2,7 +2,6 @@
 
 # Exclude sensitive files
 .env.example
-.env
 tests/
 README.md
 __pycache__

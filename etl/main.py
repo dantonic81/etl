@@ -1,5 +1,5 @@
 import pandas as pd
-from database import establish_connection
+from etl.database import establish_connection
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List
@@ -13,6 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+# TODO potential issues: all columns varchar, .env propagation to container, IS_TEST_ENV best practice
 def parse_url(url: str) -> Dict[str, str]:
     """
     Parse a URL and extract relevant data.
@@ -47,20 +48,24 @@ def create_table(cursor):
     Parameters:
     - cursor: psycopg2.extensions.cursor
     """
-    cursor.execute(
+    try:
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS customer_visits (
+                ad_bucket VARCHAR(255),
+                ad_type VARCHAR(255),
+                ad_source VARCHAR(255),
+                schema_version VARCHAR(255),
+                ad_campaign_id VARCHAR(255),
+                ad_keyword VARCHAR(255),
+                ad_group_id VARCHAR(255),
+                ad_creative VARCHAR(255)
+            );
         """
-        CREATE TABLE IF NOT EXISTS customer_visits (
-            ad_bucket VARCHAR(255),
-            ad_type VARCHAR(255),
-            ad_source VARCHAR(255),
-            schema_version VARCHAR(255),
-            ad_campaign_id VARCHAR(255),
-            ad_keyword VARCHAR(255),
-            ad_group_id VARCHAR(255),
-            ad_creative VARCHAR(255)
-        );
-    """
-    )
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating 'customer_visits' table: {e}")
 
 
 def check_record_exists(cursor, data) -> bool:
@@ -106,6 +111,10 @@ def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
     - cursor: psycopg2.extensions.cursor
     - data_list: List of dictionaries
     """
+    # Count the number of rows before the insert operation
+    cursor.execute("SELECT COUNT(*) FROM customer_visits;")
+    before_insert_count = cursor.fetchone()[0]
+
     data_to_insert = [
         (
             data["ad_bucket"],
@@ -129,37 +138,65 @@ def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
         data_to_insert,
     )
 
+    # Log the specific records being inserted
+    for data in data_to_insert:
+        logger.debug(f"Inserted record: {data}")
+
+    # Count the number of rows after the insert operation
+    cursor.execute("SELECT COUNT(*) FROM customer_visits;")
+    after_insert_count = cursor.fetchone()[0]
+
+    # Calculate the number of rows inserted
+    rows_inserted = after_insert_count - before_insert_count
+
+    # Log the number of rows inserted
+    logger.info(f"{rows_inserted} rows inserted.")
+
 
 def main() -> None:
     """
     Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
     """
     try:
+        logger.info("Reading source data...")
         df = pd.read_csv("data/raw_urls.csv")
 
         # Add columns to DataFrame with parsed data
         df["parsed_data"] = df["url"].apply(parse_url)
+        # Log the number of records in the DataFrame
+        logger.info(f"Number of records read: {len(df)}")
 
         # Attempt to establish a connection
         with establish_connection() as connection:
             if connection:
+                logger.info("Connected to database.")
                 try:
                     with connection.cursor() as cursor:
                         # Create customer_visits table if not exists
                         create_table(cursor)
+                        logger.info("Table 'customer_visits' created successfully.")
 
                         # Insert data into PostgreSQL
                         parsed_data_list = df["parsed_data"].tolist()
                         existing_data = []
 
+                        logger.info("Checking if records already exist...")
                         for data in parsed_data_list:
                             # Check if a similar record already exists
                             if not check_record_exists(cursor, data):
                                 existing_data.append(data)
 
                         # Batch insert only the records that don't exist
+
                         if existing_data:
+                            logger.info("Inserting new records...")
                             batch_insert_records(cursor, existing_data)
+                        else:
+                            logger.info("No new records to insert.")
+
+                    # Commit changes
+                    connection.commit()
+                    logger.info("Changes committed.")
 
                 except OperationalError as e:
                     logger.error(f"Error executing SQL commands: {e}")
