@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# TODO potential issues: all columns varchar, .env propagation to container, IS_TEST_ENV best practice
+# TODO potential issues: all columns varchar, .env propagation to container
 def parse_url(url: str) -> Dict[str, str]:
     """
     Parse a URL and extract relevant data.
