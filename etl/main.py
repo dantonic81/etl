@@ -170,7 +170,7 @@ def main() -> None:
                 except OperationalError as e:
                     logger.error(f"Error executing SQL commands: {e}")
 
-    except Exception as e:
+    except Exception:
         logger.exception("An unexpected error occurred:", exc_info=True)
 
 
