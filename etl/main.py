@@ -13,7 +13,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-# TODO potential issues: all columns varchar, .env propagation to container
 def parse_url(url: str) -> Dict[str, str]:
     """
     Parse a URL and extract relevant data.
@@ -31,11 +30,11 @@ def parse_url(url: str) -> Dict[str, str]:
         "ad_bucket": query_params.get("a_bucket", [""])[0],
         "ad_type": query_params.get("a_type", [""])[0],
         "ad_source": query_params.get("a_source", [""])[0],
-        "schema_version": query_params.get("a_v", [""])[0],
-        "ad_campaign_id": query_params.get("a_g_campaignid", [""])[0],
+        "schema_version": int(query_params.get("a_v", [None])[0]) if query_params.get("a_v") else None,
+        "ad_campaign_id": int(query_params.get("a_g_campaignid", [None])[0]) if query_params.get("a_g_campaignid") else None,
         "ad_keyword": query_params.get("a_g_keyword", [""])[0],
-        "ad_group_id": query_params.get("a_g_adgroupid", [""])[0],
-        "ad_creative": query_params.get("a_g_creative", [""])[0],
+        "ad_group_id": int(query_params.get("a_g_adgroupid", [None])[0]) if query_params.get("a_g_adgroupid") else None,
+        "ad_creative": int(query_params.get("a_g_creative", [None])[0]) if query_params.get("a_g_creative") else None,
     }
 
     return data
@@ -55,11 +54,11 @@ def create_table(cursor):
                 ad_bucket VARCHAR(255),
                 ad_type VARCHAR(255),
                 ad_source VARCHAR(255),
-                schema_version VARCHAR(255),
-                ad_campaign_id VARCHAR(255),
+                schema_version INT,
+                ad_campaign_id INT,
                 ad_keyword VARCHAR(255),
-                ad_group_id VARCHAR(255),
-                ad_creative VARCHAR(255)
+                ad_group_id INT,
+                ad_creative INT
             );
         """
         )
