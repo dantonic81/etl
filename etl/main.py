@@ -8,12 +8,6 @@ import logging
 
 load_dotenv()
 
-
-# TODO write tests
-# TODO use linting
-# handle scaling issue when data file becomes too big to be copied to container
-
-
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

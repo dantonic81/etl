@@ -15,4 +15,3 @@ services:
       dockerfile: ./etl/Dockerfile
     env_file:
       - .env
-
