@@ -33,14 +33,14 @@ def parse_url(url: str) -> Dict[str, str]:
     query_params = parse_qs(parsed_url.query)
 
     data = {
-        'ad_bucket': query_params.get('a_bucket', [''])[0],
-        'ad_type': query_params.get('a_type', [''])[0],
-        'ad_source': query_params.get('a_source', [''])[0],
-        'schema_version': query_params.get('a_v', [''])[0],
-        'ad_campaign_id': query_params.get('a_g_campaignid', [''])[0],
-        'ad_keyword': query_params.get('a_g_keyword', [''])[0],
-        'ad_group_id': query_params.get('a_g_adgroupid', [''])[0],
-        'ad_creative': query_params.get('a_g_creative', [''])[0],
+        "ad_bucket": query_params.get("a_bucket", [""])[0],
+        "ad_type": query_params.get("a_type", [""])[0],
+        "ad_source": query_params.get("a_source", [""])[0],
+        "schema_version": query_params.get("a_v", [""])[0],
+        "ad_campaign_id": query_params.get("a_g_campaignid", [""])[0],
+        "ad_keyword": query_params.get("a_g_keyword", [""])[0],
+        "ad_group_id": query_params.get("a_g_adgroupid", [""])[0],
+        "ad_creative": query_params.get("a_g_creative", [""])[0],
     }
 
     return data
@@ -53,7 +53,8 @@ def create_table(cursor):
     Parameters:
     - cursor: psycopg2.extensions.cursor
     """
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS customer_visits (
             ad_bucket VARCHAR(255),
             ad_type VARCHAR(255),
@@ -64,7 +65,8 @@ def create_table(cursor):
             ad_group_id VARCHAR(255),
             ad_creative VARCHAR(255)
         );
-    """)
+    """
+    )
 
 
 def check_record_exists(cursor, data) -> bool:
@@ -78,22 +80,25 @@ def check_record_exists(cursor, data) -> bool:
     Returns:
     - bool: True if the record exists, False otherwise.
     """
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM customer_visits
         WHERE ad_bucket = %s AND ad_type = %s AND ad_source = %s AND
               schema_version = %s AND ad_campaign_id = %s AND ad_keyword = %s AND
               ad_group_id = %s AND ad_creative = %s;
-    """, (
-        data['ad_bucket'],
-        data['ad_type'],
-        data['ad_source'],
-        data['schema_version'],
-        data['ad_campaign_id'],
-        data['ad_keyword'],
-        data['ad_group_id'],
-        data['ad_creative'],
-    ))
+    """,
+        (
+            data["ad_bucket"],
+            data["ad_type"],
+            data["ad_source"],
+            data["schema_version"],
+            data["ad_campaign_id"],
+            data["ad_keyword"],
+            data["ad_group_id"],
+            data["ad_creative"],
+        ),
+    )
 
     count = cursor.fetchone()[0]
     return count > 0
@@ -107,21 +112,28 @@ def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
     - cursor: psycopg2.extensions.cursor
     - data_list: List of dictionaries
     """
-    data_to_insert = [(data['ad_bucket'],
-                       data['ad_type'],
-                       data['ad_source'],
-                       data['schema_version'],
-                       data['ad_campaign_id'],
-                       data['ad_keyword'],
-                       data['ad_group_id'],
-                       data['ad_creative'])
-                      for data in data_list]
+    data_to_insert = [
+        (
+            data["ad_bucket"],
+            data["ad_type"],
+            data["ad_source"],
+            data["schema_version"],
+            data["ad_campaign_id"],
+            data["ad_keyword"],
+            data["ad_group_id"],
+            data["ad_creative"],
+        )
+        for data in data_list
+    ]
 
-    cursor.executemany("""
+    cursor.executemany(
+        """
         INSERT INTO customer_visits 
         (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-    """, data_to_insert)
+    """,
+        data_to_insert,
+    )
 
 
 def main() -> None:
@@ -129,10 +141,10 @@ def main() -> None:
     Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
     """
     try:
-        df = pd.read_csv('data/raw_urls.csv')
+        df = pd.read_csv("data/raw_urls.csv")
 
         # Add columns to DataFrame with parsed data
-        df['parsed_data'] = df['url'].apply(parse_url)
+        df["parsed_data"] = df["url"].apply(parse_url)
 
         # Attempt to establish a connection
         with establish_connection() as connection:
@@ -143,7 +155,7 @@ def main() -> None:
                         create_table(cursor)
 
                         # Insert data into PostgreSQL
-                        parsed_data_list = df['parsed_data'].tolist()
+                        parsed_data_list = df["parsed_data"].tolist()
                         existing_data = []
 
                         for data in parsed_data_list:
