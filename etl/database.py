@@ -12,8 +12,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-IS_TEST_ENV = os.environ.get("TEST_ENVIRONMENT", False)
-
+IS_TEST_ENV = os.environ.get("TEST_ENVIRONMENT", "False") == "True"
 
 connection_pool = None
 # Connection pool configuration

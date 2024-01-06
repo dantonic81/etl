@@ -1,3 +1,6 @@
+import os
+os.environ["TEST_ENVIRONMENT"] = "True"
+
 from etl.main import (
     parse_url,
     create_table,
