@@ -1,5 +1,6 @@
 import os
 import psycopg2
+from contextlib import contextmanager
 from dotenv import load_dotenv
 from typing import Optional
 from psycopg2 import OperationalError
@@ -29,11 +30,13 @@ if not IS_TEST_ENV:
     )
 
 
+@contextmanager
 def establish_connection() -> Optional[psycopg2.extensions.connection]:
     if not IS_TEST_ENV and connection_pool:
         try:
-            return connection_pool.getconn()
+            conn = connection_pool.getconn()
+            yield conn
         except OperationalError as e:
             logger.error(f"Error: Unable to connect to the database. {e}")
-            return None
-    return None
+    else:
+        yield None
