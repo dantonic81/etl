@@ -1,4 +1,5 @@
 import os
+
 os.environ["TEST_ENVIRONMENT"] = "True"
 
 from etl.main import (
@@ -18,7 +19,7 @@ def test_parse_url():
         "ad_source": "value3",
         "schema_version": None,
         "ad_campaign_id": None,
-        "ad_keyword": "",
+        "ad_keyword": None,
         "ad_group_id": None,
         "ad_creative": None,
     }
@@ -37,11 +38,11 @@ def test_check_record_exists(mocker, mock_psycopg2):
         "ad_bucket": "value1",
         "ad_type": "value2",
         "ad_source": "value3",
-        "schema_version": "value4",
-        "ad_campaign_id": "value5",
+        "schema_version": 4,
+        "ad_campaign_id": 5,
         "ad_keyword": "value6",
-        "ad_group_id": "value7",
-        "ad_creative": "value8",
+        "ad_group_id": 7,
+        "ad_creative": 8,
     }
 
     # Mock the fetchone result to return count
@@ -53,10 +54,16 @@ def test_check_record_exists(mocker, mock_psycopg2):
         """
         SELECT COUNT(*)
         FROM customer_visits
-        WHERE ad_bucket = %s AND ad_type = %s AND ad_source = %s AND
-              schema_version = %s AND ad_campaign_id = %s AND ad_keyword = %s AND
-              ad_group_id = %s AND ad_creative = %s;
-    """,
+        WHERE 
+            (ad_bucket = %s OR ad_bucket IS NULL) AND
+            (ad_type = %s OR ad_type IS NULL) AND
+            (ad_source = %s OR ad_source IS NULL) AND
+            (schema_version = %s OR schema_version IS NULL) AND
+            (ad_campaign_id = %s OR ad_campaign_id IS NULL) AND
+            (ad_keyword = %s OR ad_keyword IS NULL) AND
+            (ad_group_id = %s OR ad_group_id IS NULL) AND
+            (ad_creative = %s OR ad_creative IS NULL);
+        """,
         (
             data["ad_bucket"],
             data["ad_type"],

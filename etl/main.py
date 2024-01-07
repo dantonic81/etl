@@ -3,7 +3,7 @@ from etl.database import establish_connection
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, List
-from psycopg2 import OperationalError
+from psycopg2 import OperationalError, Error
 import logging
 
 load_dotenv()
@@ -27,14 +27,22 @@ def parse_url(url: str) -> Dict[str, str]:
     query_params = parse_qs(parsed_url.query)
 
     data = {
-        "ad_bucket": query_params.get("a_bucket", [""])[0],
-        "ad_type": query_params.get("a_type", [""])[0],
-        "ad_source": query_params.get("a_source", [""])[0],
-        "schema_version": int(query_params.get("a_v", [None])[0]) if query_params.get("a_v") else None,
-        "ad_campaign_id": int(query_params.get("a_g_campaignid", [None])[0]) if query_params.get("a_g_campaignid") else None,
-        "ad_keyword": query_params.get("a_g_keyword", [""])[0],
-        "ad_group_id": int(query_params.get("a_g_adgroupid", [None])[0]) if query_params.get("a_g_adgroupid") else None,
-        "ad_creative": int(query_params.get("a_g_creative", [None])[0]) if query_params.get("a_g_creative") else None,
+        "ad_bucket": query_params.get("a_bucket", [None])[0],
+        "ad_type": query_params.get("a_type", [None])[0],
+        "ad_source": query_params.get("a_source", [None])[0],
+        "schema_version": int(query_params.get("a_v", [None])[0])
+        if query_params.get("a_v")
+        else None,
+        "ad_campaign_id": int(query_params.get("a_g_campaignid", [None])[0])
+        if query_params.get("a_g_campaignid")
+        else None,
+        "ad_keyword": query_params.get("a_g_keyword", [None])[0],
+        "ad_group_id": int(query_params.get("a_g_adgroupid", [None])[0])
+        if query_params.get("a_g_adgroupid")
+        else None,
+        "ad_creative": int(query_params.get("a_g_creative", [None])[0])
+        if query_params.get("a_g_creative")
+        else None,
     }
 
     return data
@@ -63,7 +71,7 @@ def create_table(cursor):
         """
         )
 
-    except Exception as e:
+    except Error as e:
         logger.error(f"Error creating 'customer_visits' table: {e}")
 
 
@@ -82,10 +90,16 @@ def check_record_exists(cursor, data) -> bool:
         """
         SELECT COUNT(*)
         FROM customer_visits
-        WHERE ad_bucket = %s AND ad_type = %s AND ad_source = %s AND
-              schema_version = %s AND ad_campaign_id = %s AND ad_keyword = %s AND
-              ad_group_id = %s AND ad_creative = %s;
-    """,
+        WHERE 
+            (ad_bucket = %s OR ad_bucket IS NULL) AND
+            (ad_type = %s OR ad_type IS NULL) AND
+            (ad_source = %s OR ad_source IS NULL) AND
+            (schema_version = %s OR schema_version IS NULL) AND
+            (ad_campaign_id = %s OR ad_campaign_id IS NULL) AND
+            (ad_keyword = %s OR ad_keyword IS NULL) AND
+            (ad_group_id = %s OR ad_group_id IS NULL) AND
+            (ad_creative = %s OR ad_creative IS NULL);
+        """,
         (
             data["ad_bucket"],
             data["ad_type"],
