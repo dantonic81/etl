@@ -74,3 +74,9 @@ Data Validation and Cleaning: Enhance data validation and cleaning processes to 
 Parallel Processing: Implement parallel processing to improve the speed and efficiency of the ETL process, especially when dealing with large datasets.
 
 Automated Testing: Extend test coverage with automated integration tests and end-to-end tests to catch potential issues before deployment.
+
+## Other packages used (not listed in requirements.txt)
+
+- black (formatting)
+- flake8 (linting)
+- coverage (test coverage)
