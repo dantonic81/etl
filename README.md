@@ -39,6 +39,13 @@ This repository contains a simple ETL (Extract, Transform, Load) solution for pr
 
 ## Testing
 
+You may want to have a separate virtual environment set up before installing dependencies and running tests.
+Setting up a virtual environment is outside the scope of this document.
+
+Once in your virtual environment, install dependencies from requirements.txt file:
+
+    pip install -r requirements.txt
+
 Run the unit tests using pytest:
 
    ```bash
