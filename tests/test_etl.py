@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 
 os.environ["TEST_ENVIRONMENT"] = "True"
 
@@ -8,6 +9,7 @@ from etl.main import (
     check_record_exists,
     batch_insert_records,
     main,
+    extract,
 )
 
 
@@ -146,3 +148,41 @@ def test_main(mocker, mock_pd, mock_establish_connection):
     mock_connection.cursor.assert_called_once()
     mock_connection.cursor.return_value.__enter__.assert_called_once()
     mock_cursor.execute.assert_called_once()
+
+
+def test_extract_empty_data_error(mock_open, mocker):
+    # Arrange
+    mock_read_csv = mocker.patch("pandas.read_csv", side_effect=pd.errors.EmptyDataError)
+
+    # Act
+    result = extract("fake_path.csv")
+
+    # Assert
+    assert result.empty
+    mock_read_csv.assert_called_once_with(mock_open())
+
+
+def test_extract_parser_error(mock_open, mocker):
+    # Arrange
+    mock_read_csv = mocker.patch("pandas.read_csv", side_effect=pd.errors.ParserError("Mocked parser error"))
+
+    # Act
+    result = extract("fake_path.csv")
+
+    # Assert
+    assert result.empty
+    mock_read_csv.assert_called_once_with(mock_open())
+
+
+def test_extract_successful(mock_open, mocker):
+    # Arrange
+    mock_read_csv = mocker.patch("pandas.read_csv")
+    expected_df = pd.DataFrame({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
+    mock_read_csv.return_value = expected_df
+
+    # Act
+    result = extract("fake_path.csv")
+
+    # Assert
+    assert result.equals(expected_df)
+    mock_read_csv.assert_called_once_with(mock_open())
