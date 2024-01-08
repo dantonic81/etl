@@ -13,7 +13,7 @@ def mock_pd(mocker):
 
 @pytest.fixture
 def mock_establish_connection(mocker):
-    return mocker.patch("etl.main.establish_connection")
+    return mocker.patch("etl.database.establish_connection")
 
 
 @pytest.fixture

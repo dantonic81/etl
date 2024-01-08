@@ -48,7 +48,8 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
     - pd.DataFrame: Transformed DataFrame.
     """
-    df['parsed_data'] = df['url'].apply(parse_url)
+    if not df.empty and 'url' in df.columns:
+        df['parsed_data'] = df['url'].apply(parse_url)
     return df
 
 
@@ -115,6 +116,11 @@ def etl_process(connection, data_directory: str) -> None:
                     df = extract(file_path)
                     df = transform(df)
                     all_files_data.append(df)
+
+            # Check if there are files to process
+            if not all_files_data:
+                logger.warning(f"No CSV files found in {data_directory}. Nothing to process.")
+                return
 
             # Combine or process all_files_data as needed
             combined_df = pd.concat(all_files_data)
@@ -291,10 +297,6 @@ def main() -> None:
                     with connection.cursor() as cursor:
                         # Perform ETL on all files in the data directory
                         etl_process(connection, DATA_DIRECTORY)
-
-                    # Commit changes
-                    connection.commit()
-                    logger.info("Changes committed.")
 
                 except OperationalError as e:
                     logger.error(f"Error executing SQL commands: {e}")
