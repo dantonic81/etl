@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from etl.database import establish_connection
 from dotenv import load_dotenv
@@ -11,6 +12,118 @@ load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+DATA_DIRECTORY = "data"
+
+
+def extract(file_path: str) -> pd.DataFrame:
+    """
+    Extract data from a CSV file.
+
+    Parameters:
+    - file_path (str): Path to the CSV file.
+
+    Returns:
+    - pd.DataFrame: DataFrame containing the extracted data.
+    """
+    try:
+        with open(file_path, 'r') as file:
+            df = pd.read_csv(file)
+        return df
+    except pd.errors.EmptyDataError:
+        logger.error("CSV file is empty.")
+        return pd.DataFrame()
+    except pd.errors.ParserError as e:
+        logger.error(f"Error parsing CSV file: {e}")
+        return pd.DataFrame()
+
+
+def transform(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Transform the DataFrame by adding parsed_data column.
+
+    Parameters:
+    - df (pd.DataFrame): Original DataFrame.
+
+    Returns:
+    - pd.DataFrame: Transformed DataFrame.
+    """
+    df['parsed_data'] = df['url'].apply(parse_url)
+    return df
+
+
+def load(connection, df: pd.DataFrame) -> None:
+    """
+    Load data into the PostgreSQL database.
+
+    Parameters:
+    - connection: psycopg2.extensions.connection
+    - df (pd.DataFrame): DataFrame containing data to be loaded.
+
+    Returns:
+    - None
+    """
+    try:
+        with connection.cursor() as cursor:
+            # Insert data into PostgreSQL
+            parsed_data_list = df["parsed_data"].tolist()
+            existing_data = []
+
+            logger.info("Checking if records already exist...")
+            for data in parsed_data_list:
+                # Check if a similar record already exists
+                if not check_record_exists(cursor, data):
+                    existing_data.append(data)
+
+            # Batch insert only the records that don't exist
+            if existing_data:
+                logger.info("Inserting new records...")
+                batch_insert_records(cursor, existing_data)
+            else:
+                logger.info("No new records to insert.")
+
+        # Commit changes
+        connection.commit()
+        logger.info("Changes committed.")
+
+    except OperationalError as e:
+        logger.error(f"Error executing SQL commands: {e}")
+
+
+def etl_process(connection, data_directory: str) -> None:
+    """
+    Perform the ETL process on all source data from multiple files.
+
+    Parameters:
+    - connection: psycopg2.extensions.connection
+    - data_directory (str): Path to the directory containing CSV files.
+
+    Returns:
+    - None
+    """
+    try:
+        with connection.cursor() as cursor:
+            # Create customer_visits table if not exists
+            create_table(cursor)
+            logger.info("Table 'customer_visits' created successfully.")
+
+            all_files_data = []
+
+            for filename in os.listdir(data_directory):
+                if filename.endswith(".csv"):
+                    file_path = os.path.join(data_directory, filename)
+                    df = extract(file_path)
+                    df = transform(df)
+                    all_files_data.append(df)
+
+            # Combine or process all_files_data as needed
+            combined_df = pd.concat(all_files_data)
+
+            # Load data into PostgreSQL
+            load(connection, combined_df)
+
+    except OperationalError as e:
+        logger.error(f"Error executing SQL commands: {e}")
 
 
 def parse_url(url: str) -> Dict[str, str]:
@@ -168,44 +281,16 @@ def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
 
 def main() -> None:
     """
-    Main ETL function to read data from a CSV file, parse URLs, and insert data into PostgreSQL.
+    Main ETL function to read data from CSV files, parse URLs, and insert data into PostgreSQL.
     """
     try:
-        logger.info("Reading source data...")
-        df = pd.read_csv("data/raw_urls.csv")
-
-        # Add columns to DataFrame with parsed data
-        df["parsed_data"] = df["url"].apply(parse_url)
-        # Log the number of records in the DataFrame
-        logger.info(f"Number of records read: {len(df)}")
-
-        # Attempt to establish a connection
         with establish_connection() as connection:
             if connection:
                 logger.info("Connected to database.")
                 try:
                     with connection.cursor() as cursor:
-                        # Create customer_visits table if not exists
-                        create_table(cursor)
-                        logger.info("Table 'customer_visits' created successfully.")
-
-                        # Insert data into PostgreSQL
-                        parsed_data_list = df["parsed_data"].tolist()
-                        existing_data = []
-
-                        logger.info("Checking if records already exist...")
-                        for data in parsed_data_list:
-                            # Check if a similar record already exists
-                            if not check_record_exists(cursor, data):
-                                existing_data.append(data)
-
-                        # Batch insert only the records that don't exist
-
-                        if existing_data:
-                            logger.info("Inserting new records...")
-                            batch_insert_records(cursor, existing_data)
-                        else:
-                            logger.info("No new records to insert.")
+                        # Perform ETL on all files in the data directory
+                        etl_process(connection, DATA_DIRECTORY)
 
                     # Commit changes
                     connection.commit()
