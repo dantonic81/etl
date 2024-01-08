@@ -15,6 +15,41 @@ logger = logging.getLogger(__name__)
 
 DATA_DIRECTORY = "data"
 
+CREATE_TABLE_QUERY = """
+CREATE TABLE IF NOT EXISTS customer_visits (
+    ad_bucket VARCHAR(255),
+    ad_type VARCHAR(255),
+    ad_source VARCHAR(255),
+    schema_version INT,
+    ad_campaign_id INT,
+    ad_keyword VARCHAR(255),
+    ad_group_id INT,
+    ad_creative INT
+);
+"""
+
+CHECK_RECORD_EXISTS_QUERY = """
+SELECT COUNT(*)
+FROM customer_visits
+WHERE 
+    (ad_bucket = %s OR ad_bucket IS NULL) AND
+    (ad_type = %s OR ad_type IS NULL) AND
+    (ad_source = %s OR ad_source IS NULL) AND
+    (schema_version = %s OR schema_version IS NULL) AND
+    (ad_campaign_id = %s OR ad_campaign_id IS NULL) AND
+    (ad_keyword = %s OR ad_keyword IS NULL) AND
+    (ad_group_id = %s OR ad_group_id IS NULL) AND
+    (ad_creative = %s OR ad_creative IS NULL
+);
+"""
+
+INSERT_RECORDS_QUERY = """
+INSERT INTO customer_visits 
+(ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s
+);
+"""
+
 
 def extract(file_path: str) -> pd.DataFrame:
     """
@@ -175,21 +210,7 @@ def create_table(cursor):
     - cursor: psycopg2.extensions.cursor
     """
     try:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS customer_visits (
-                ad_bucket VARCHAR(255),
-                ad_type VARCHAR(255),
-                ad_source VARCHAR(255),
-                schema_version INT,
-                ad_campaign_id INT,
-                ad_keyword VARCHAR(255),
-                ad_group_id INT,
-                ad_creative INT
-            );
-        """
-        )
-
+        cursor.execute(CREATE_TABLE_QUERY)
     except Error as e:
         logger.error(f"Error creating 'customer_visits' table: {e}")
 
@@ -206,19 +227,7 @@ def check_record_exists(cursor, data) -> bool:
     - bool: True if the record exists, False otherwise.
     """
     cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM customer_visits
-        WHERE 
-            (ad_bucket = %s OR ad_bucket IS NULL) AND
-            (ad_type = %s OR ad_type IS NULL) AND
-            (ad_source = %s OR ad_source IS NULL) AND
-            (schema_version = %s OR schema_version IS NULL) AND
-            (ad_campaign_id = %s OR ad_campaign_id IS NULL) AND
-            (ad_keyword = %s OR ad_keyword IS NULL) AND
-            (ad_group_id = %s OR ad_group_id IS NULL) AND
-            (ad_creative = %s OR ad_creative IS NULL);
-        """,
+        CHECK_RECORD_EXISTS_QUERY,
         (
             data["ad_bucket"],
             data["ad_type"],
@@ -262,11 +271,7 @@ def batch_insert_records(cursor, data_list: List[Dict[str, str]]) -> None:
     ]
 
     cursor.executemany(
-        """
-        INSERT INTO customer_visits 
-        (ad_bucket, ad_type, ad_source, schema_version, ad_campaign_id, ad_keyword, ad_group_id, ad_creative)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-    """,
+        INSERT_RECORDS_QUERY,
         data_to_insert,
     )
 
